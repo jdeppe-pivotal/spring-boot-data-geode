@@ -20,16 +20,21 @@ import java.util.function.Predicate;
 
 import org.apache.geode.cache.client.ClientRegionShortcut;
 
+import example.app.caching.inline.repo.CalculatorRepository;
+import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.autoconfigure.domain.EntityScan;
+import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;
 import org.springframework.cache.interceptor.KeyGenerator;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
+import org.springframework.data.gemfire.config.annotation.ClientCacheApplication;
 import org.springframework.data.gemfire.config.annotation.EnableCachingDefinedRegions;
-import org.springframework.geode.cache.InlineCachingRegionConfigurer;
+import org.springframework.data.gemfire.config.annotation.EnableClusterConfiguration;
 
 import example.app.caching.inline.model.Operator;
 import example.app.caching.inline.model.ResultHolder;
-import example.app.caching.inline.repo.CalculatorRepository;
+import org.springframework.geode.cache.InlineCachingRegionConfigurer;
 
 /**
  * Spring {@link Configuration} class used to configure Apache Geode as a caching provider as well as configure
@@ -51,12 +56,25 @@ import example.app.caching.inline.repo.CalculatorRepository;
  */
 // tag::class[]
 @Configuration
-@EnableCachingDefinedRegions(clientRegionShortcut = ClientRegionShortcut.LOCAL)
-@EntityScan(basePackageClasses = ResultHolder.class)
 @SuppressWarnings("unused")
 public class CalculatorConfiguration {
 
+	@Profile("backend-enabled")
+	@EnableAutoConfiguration(exclude = DataSourceAutoConfiguration.class)
+	@EnableCachingDefinedRegions(clientRegionShortcut = ClientRegionShortcut.PROXY)
+	@EnableClusterConfiguration
+	@ClientCacheApplication(locators = {@ClientCacheApplication.Locator(port = 20334)})
+	public static class ClientWithBackendDatasource {
+	}
+
+	@Profile("!backend-enabled")
+	@EnableCachingDefinedRegions(clientRegionShortcut = ClientRegionShortcut.LOCAL)
+	@EntityScan(basePackageClasses = ResultHolder.class)
+	public static class ClientWithLocalDatasource {
+	}
+
 	@Bean
+	@Profile("!backend-enabled")
 	InlineCachingRegionConfigurer<ResultHolder, ResultHolder.ResultKey> inlineCachingForCalculatorApplicationRegionsConfigurer(
 			CalculatorRepository calculatorRepository) {
 
